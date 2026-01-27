@@ -557,53 +557,77 @@ class SourceOpenVoltage(Source):
 
 
 class SourceActivePower(Source):
-    '''class defining source with constant active power at load.'''
+    '''class defining source with constant active power.'''
     
     
-    def __init__(self, p_active, z_source):
+    def __init__(self, p_active, z_source, mode):
         '''initialize source.
         
         Parameters
         ----------
         p_active: scalar
-            active power at load impedance
+            active (real) power
         
         z_source: scalar
             internal impedance of source
+        
+        mode: {'source', 'load', 'total'}
+            source: active power dissipated in source
+            load: active power dissipated in load
+            total: active power dissipated in source and load
         '''
+        
+        # check value of parameter mode
+        if mode not in ['source', 'load', 'total']:
+            raise ValueError(f'unknown value "{mode}" for parameter "mode".')
+        
         
         # stores parameters
         self.p_active = p_active
         self.z_source = z_source
+        self.mode = mode
     
     
     
     def get_output_voltage(self, z_load):
         '''get voltage over load.'''
         
-        
-        if np.any(np.isclose(np.real(z_load), 0.0)):
-            # load impedance has zero resistance (real part)
-            
-            raise ValueError(
-                'load impedance must have nonzero resistance (real part).\n' \
-                f'z_load: {z_load}'
-            )
-        
+        # calculate current through load
+        i_load = self.get_output_current(z_load)
         
         # calculate and return voltage over load
-        return np.sqrt(self.p_active / np.real(z_load)) * z_load
+        return i_load * z_load
     
     
     
     def get_output_current(self, z_load):
         '''get current through load.'''
         
-        # calculate voltage over load
-        v_load = self.get_output_voltage(z_load)
+        # extract resistance (real part of impedance) which dissipates given active power
+        if self.mode == 'source':
+            resistance = np.real(self.z_source)
+        
+        elif self.mode == 'load':
+            resistance = np.real(z_load)
+        
+        elif self.mode == 'total':
+            resistance = np.real(self.z_source + z_load)
+        
+        else:
+            raise ValueError(f'unknown value "{self.mode}" for parameter "mode".')
+        
+        
+        if np.any(np.isclose(resistance, 0.0)):
+            # resistance is zero (nothing dissipates)
+            
+            raise ValueError(
+                'impedance must have nonzero resistance (real part).\n' \
+                f'impedance: z_source, z_load or z_source + z_load depending on mode.'
+            )
         
         # calculate and return current through load
-        return v_load / z_load
+        # factor two ensures to calculate current amplitude (peak value)
+        return np.sqrt(2 * self.p_active / resistance)
 
 
 

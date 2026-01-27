@@ -8,7 +8,7 @@ setup(
     name='electrooptic', 
     
     # version of package
-    version='0.1.0', 
+    version='0.2.0', 
     
     # package description
     description='electrooptic: simulation tool for optical modulators', 
